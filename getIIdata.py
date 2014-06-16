@@ -16,15 +16,13 @@ import glob
 import urllib
 import os
 import argparse
+import sys
 
 #Here is where we will import our modules
 
 from obspy import UTCDateTime
 from obspy.core import read
-
-
-debug = True
-
+from obspy.fdsn import Client
 
 #Need to specify which station and day we want to get data for
 #This should be added using argparser see line 155 to 177 or mdget.py 
@@ -60,43 +58,41 @@ sta = parserval.station
 loc = parserval.location
 chan = parserval.channel
 
-
-
-
-#net = 'II'
-#sta = 'PFO'
-#day = '001'
-#year = '2014'
-#loc = '00'
-#chan = 'LHZ'
+#Here is debug mode
+if parserval.debug:
+	debug = True
+else:
+	debug = False
 
 #Need to make a UTCDateTime object
 startTime = UTCDateTime(year + day +"T00:00:00.000")
 endTime = startTime + 24*60*60
 if debug:
-	print "Here is our start time"
-	print(startTime.formatIRISWebService())
-
-
+	print "Here is our start time" + startTime.formatIRISWebService()
+	print "Here is our end time" + endTime.formatIRISWebService()
 
 #Need to pull the data
-#Adam needs to clean this piece up 
-
-webRequestString = 'http://service.iris.edu/fdsnws/dataselect/1/query?net=' + net + \
-	'&sta=' + sta + '&loc=' + loc + '&cha=' + chan + '&start=' + \
-	startTime.formatIRISWebService() + '&end=' + endTime.formatIRISWebService()
-if debug:
-	print webRequestString
-
-#We have requested the data
+client = Client()
 try:
-	blah = urllib.urlretrieve(webRequestString,filename='Blah.mseed')
-	os.system('rdseed -f Blah.mseed -g /APPS/metadata/SEED/' + net + '.dataless -d -o 4')
-	os.system('rm Blah.mseed')
-	os.system('mv mini.seed ' + loc + '_' + chan + '.seed') 
+	st = client.get_waveforms(net,sta,loc,chan,startTime,endTime)
+	for tr in st:
+#Here we remove the M data quality and go with D
+		tr.stats.mseed['dataquality'] = 'D'
+		if debug:
+			print "Here is a trace we have"
+			print(tr.stats)
 except:
-	print 'We were unable to get the data'
+	print 'Trouble getting data'
+	sys.exit(0)
 
+try:
+#Here we write the data using STEIM 2 and 512 record lengths
+	st.write(loc + '_' + chan + '.512.seed',reclen=512, format='MSEED',encoding='STEIM2')
+	if debug:
+		print "We are writing the data"
+except:
+	print 'Problem writing data'
+	sys.exit(0)
 
 
 #Need to re-organize the data to be put in a location
