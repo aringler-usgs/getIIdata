@@ -28,23 +28,15 @@ from obspy.fdsn import Client
 #This should be added using argparser see line 155 to 177 or mdget.py 
 parser = argparse.ArgumentParser(description='Code to get dataless from getIIdata.py')
 
-parser.add_argument('-y','--year      ', action = "store",dest="year", \
+parser.add_argument('-y', action = "store",dest="year", \
 default = "*", help="Year of collected data: YYYY", type = str, required = True)
 
 parser.add_argument('-j','--day        ', action = "store",dest="day", \
 default = "*", help="Day of collected data: DDD", type = str, required = True)
 
-parser.add_argument('-n','--network', action = "store",dest="network", \
-default = "*", help="Name of the network of interest: NN", type = str, required = True)
-
-parser.add_argument('-s','--station', type = str, action = "store", dest="station", \
-default = "*", help="Name of the station of interest: SSSSS", required = True)
-
-parser.add_argument('-l','--location', type = str, action = "store", dest="location", \
-default = "*", help="Name of the location of interest: LL", required = True)
-
-parser.add_argument('-c','--channel', action = "store",dest="channel", \
-default ="*", help="Name of the channel of interest: CCC", type = str, required = True)
+parser.add_argument('-nslc', \
+action = "store", dest= "values" , nargs = '*' , \
+help="Enter NN SSSSS LL CCC", type = str, required = True)
 
 parser.add_argument('-d','--debug',action = "store_true",dest="debug", \
 default = True, help="Run in debug mode")
@@ -53,10 +45,10 @@ parserval = parser.parse_args()
 
 year = parserval.year
 day = parserval.day
-net = parserval.network
-sta = parserval.station
-loc = parserval.location
-chan = parserval.channel
+net = parserval.values[0]
+sta = parserval.values[1]
+loc = parserval.values[2]
+chan = parserval.values[3]
 
 #Here is debug mode
 if parserval.debug:
