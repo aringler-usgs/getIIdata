@@ -139,64 +139,62 @@ if archive:
 		print "We are archiving the data to /TEST_ARCHIVE"
 #Need to check if the directories exist and if not make them
 filename = loc + '_' + chan + '.512.seed'
-pathtoseed = '/home/mkline/dev/getIIdata/src/'
-codepath = '/home/mkline/dev/getIIdata/TEST_ARCHIVE/'
+codepath = '/home/aringler/getIIdata/getIIdata/'
 
 if not os.path.exists(codepath + net + '_' + sta  + '/'):
 	os.mkdir(codepath + net + '_' + sta  + '/')
-os.chdir(codepath + net + '_' + sta  + '/')
 
 if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/'):
 	os.mkdir(codepath + net + '_' + sta  + '/' + year + '/')
-os.chdir(codepath + net + '_' + sta  + '/' + year + '/')
 
 if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/' \
 	+ year + '_' + startday + '/'):
 	os.mkdir(codepath + net + '_' + sta  + '/' + year + '/' \
 	+ year + '_' + startday + '/')
-os.chdir(codepath + net + '_' + sta  + '/' + year + '/' \
-	+ year + '_' + startday + '/')
+
 
 #Now save the data into the directory
 
 #Here we write the data into the local directory
 
 #Here we write the data using STEIM 2 and 512 record lengths
-try:
+#try:
+if True:
 	if debug:
 		print "We are writing the data" 
-	
-	'''for tr in st:
-		mytraces = []
-		print tr
-		print tr.stats.location
-		print tr.stats.channel
-		tr.write(tr.stats.location + '_' + tr.stats.channel + \
-			'.512.seed',reclen=512,format='MSEED',
-			encoding='STEIM2')
-		mytraces.append(tr.write)
-		print mytraces'''
-	
+
+	st.merge()
+	st.sort()
+	days = int(round((st[0].stats.endtime - st[0].stats.starttime)/(24*60*60)))
+	stFinal = Stream()
+	for dayIndex in range(0,days):
+		print(dayIndex)
+		trimStart = st[0].stats.starttime + (dayIndex)*24*60*60
+		trimEnd = st[0].stats.starttime + (dayIndex+1)*24*60*60
+		print(trimStart)
+		print(trimEnd)
+		stFinal = st.copy()
+		stFinal.trim(starttime = trimStart, endtime = trimEnd)
+	#The above should split things how you want
+	#You will want to put the directory structures in here since you won't want to
+	#add directory structures that you don't use	
+		
+
+	print(stFinal)
+		
+
+'''	
+#	if debug:
+#		print(startDay)
+#		print(endDay)
+
+
+
 	st.write(st[0].stats.location + '_' + st[0].stats.channel + \
 			'.512.seed', format='MSEED', encoding='STEIM2')
 	stnew = st
 	stnew.merge()
-	'''
-	print st
-	print
-	if len(st) > 2:
-		stnew = st[0]
-		for i in range(1, len(st)):
-			print "i = %d" % i
-			stnew = stnew + st[i]
-		print stnew
-	elif len(st) == 2:
-		stnew = st[0] + st[1]
-		print stnew
-	else:
-		stnew = st[0]
-		print stnew
-	'''
+
 #This is me trying to split the traces into separate days.
 	stcopy = stnew
 	mytraces = Stream()
@@ -225,8 +223,8 @@ try:
 #Need to convert date to julian day
 #this needs to be done in a loop for multiple days
 	#tt.tm_yday = 0
-	
-	'''while tt.tm_yday < endday: # this need to be the endday that is requested
+
+	while tt.tm_yday < endday: # this need to be the endday that is requested
 		daytraces = []
 		fmt1 = '%Y-%m-%d'
 		tstart = newtr.stats.starttime
@@ -242,9 +240,9 @@ try:
 		tend = tend + 1'''
 # idea behind this is to separate the traces into complete days, trying to attach the days
 # in a stream and pull each one out separately into its own directory.
-except:
-	print 'Problem writing data'
-	sys.exit(0)
+#except:
+#	print 'Problem writing data'
+#	sys.exit(0)
 
 '''#Just me fooling around with array shit
 t1 = st[0 + 1]
@@ -253,7 +251,4 @@ t2 = st[1]
 print t2
 print ' '
 print st'''
-
-
-
 
