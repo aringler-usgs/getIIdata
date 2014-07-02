@@ -141,7 +141,7 @@ if True:
 		print "We are writing the data" 
 #Need to check if the directories exist and if not make them
 	filename = loc + '_' + chan + '.512.seed'
-	codepath = '/home/mkline/dev/getIIdata/TEST_ARCHIVE/'
+	codepath = '/home/aringler/getIIdata/getIIdata/'
 	st.merge()
 	st.sort()
 	st.count()
@@ -170,21 +170,16 @@ if True:
 			+ year + '_' + NewStartDay+ '/'):
 			os.mkdir(codepath + net + '_' + sta  + '/' + year + '/' \
 			+ year + '_' + NewStartDay + '/')
+		print(st)
 		stFinal = st.copy()
+		print(stFinal)
 		stFinal.trim(starttime = trimStart, endtime = trimEnd)	
-
+		stFinal = stFinal.split()
 		# Here we write the data using STEIM 2 and 512 record lengths
-		#stFinal.write(stFinal[0].stats.location + '_' + stFinal[0].stats.channel + 				'.512.seed', format='MSEED', reclen = 512, encoding='STEIM2')	
+		stFinal.write(stFinal[0].stats.location + '_' + stFinal[0].stats.channel + '.seed', format='MSEED',reclen = 512, encoding='STEIM2')
 		
-#This is the error code I get when the above statement is uncommented.
-'''Traceback (most recent call last):
-  File "./getIIdata.py", line 177, in <module>
-    stFinal.write(stFinal[0].stats.location + '_' + stFinal[0].stats.channel + 			'.512.seed', format='MSEED', reclen = 512, encoding='STEIM2')	
-  File "/home/aringler/obspy-0.9.2/obspy/core/stream.py", line 1331, in write
-    raise NotImplementedError(msg)
-NotImplementedError: Masked array writing is not supported. You can use np.array.filled() to convert the masked array to a normal array.'''
 
-	print stFinal
+		print stFinal
 	#stFinal.write(loc + '_' + chan + '.512.seed', format='MSEED', 
 		#reclen = 512,encoding='STEIM2')	
 
