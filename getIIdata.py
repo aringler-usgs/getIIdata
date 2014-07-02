@@ -22,6 +22,7 @@ import argparse
 import sys
 import datetime
 import re, string, time
+import numpy.ma as ma
 
 #Here is where we will import our modules
 
@@ -128,127 +129,65 @@ except:
 	print 'Trouble getting data'
 	sys.exit(0)
 
-#Need to re-organize the data to be put in a location
-#We still need to do this
 #One parser flag could be to the local directory the other could go to 
 #/TEST_ARCHIVE
-
 
 if archive:
 	if debug:
 		print "We are archiving the data to /TEST_ARCHIVE"
-#Need to check if the directories exist and if not make them
-filename = loc + '_' + chan + '.512.seed'
-codepath = '/home/aringler/getIIdata/getIIdata/'
 
-if not os.path.exists(codepath + net + '_' + sta  + '/'):
-	os.mkdir(codepath + net + '_' + sta  + '/')
-
-if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/'):
-	os.mkdir(codepath + net + '_' + sta  + '/' + year + '/')
-
-if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/' \
-	+ year + '_' + startday + '/'):
-	os.mkdir(codepath + net + '_' + sta  + '/' + year + '/' \
-	+ year + '_' + startday + '/')
-
-
-#Now save the data into the directory
-
-#Here we write the data into the local directory
-
-#Here we write the data using STEIM 2 and 512 record lengths
-#try:
 if True:
 	if debug:
 		print "We are writing the data" 
-
+#Need to check if the directories exist and if not make them
+	filename = loc + '_' + chan + '.512.seed'
+	codepath = '/home/mkline/dev/getIIdata/TEST_ARCHIVE/'
 	st.merge()
 	st.sort()
+	st.count()
 	days = int(round((st[0].stats.endtime - st[0].stats.starttime)/(24*60*60)))
 	stFinal = Stream()
+	
 	for dayIndex in range(0,days):
+	#You will want to put the directory structures in here since you won't want to
+	#add directory structures that you don't use
+		if not os.path.exists(codepath + net + '_' + sta  + '/'):
+			os.mkdir(codepath + net + '_' + sta  + '/')
+		if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/'):
+			os.mkdir(codepath + net + '_' + sta  + '/' + year + '/')
+		print "Day properties: "
 		print(dayIndex)
 		trimStart = st[0].stats.starttime + (dayIndex)*24*60*60
 		trimEnd = st[0].stats.starttime + (dayIndex+1)*24*60*60
 		print(trimStart)
 		print(trimEnd)
-		stFinal = st.copy()
-		stFinal.trim(starttime = trimStart, endtime = trimEnd)
-	#The above should split things how you want
-	#You will want to put the directory structures in here since you won't want to
-	#add directory structures that you don't use	
-		
-
-	print(stFinal)
-		
-
-'''	
-#	if debug:
-#		print(startDay)
-#		print(endDay)
-
-
-
-	st.write(st[0].stats.location + '_' + st[0].stats.channel + \
-			'.512.seed', format='MSEED', encoding='STEIM2')
-	stnew = st
-	stnew.merge()
-
-#This is me trying to split the traces into separate days.
-	stcopy = stnew
-	mytraces = Stream()
-	print "This is the trace we are splitting: "
-	print
-	tracestart = stnew.stats.starttime
-	traceend = stnew.stats.starttime + (60*60*24)-1
-	print "Day Trace start: " + str(tracestart)
-	print "Day Trace end:   " + str(traceend)
-	while tracestart < stnew.stats.endtime:
-		stcopy = stnew
-		trace = stcopy.trim(starttime=tracestart, endtime=traceend)
-		mytraces += trace
-		print "This is the trace of the first day: "
-		print trace
-		print 
-		print stcopy
-		print "new trace we are splitting: "
-		print stcopy
-		tracestart = traceend + (60*60*24)
-		traceend = tracestart + (60*60*24)-1
-		print "Day Trace start: " + str(tracestart)
-		print "Day Trace end:   " + str(traceend)
-	print "These are the separated traces: " 
-	print(mytraces)
-#Need to convert date to julian day
-#this needs to be done in a loop for multiple days
-	#tt.tm_yday = 0
-
-	while tt.tm_yday < endday: # this need to be the endday that is requested
-		daytraces = []
-		fmt1 = '%Y-%m-%d'
-		tstart = newtr.stats.starttime
-		tend = tstart + (60*60*24) - 1
-		tstart_string = str(tstart)
-		timesplit = re.split('T', tstart_string)
+		print
+		timesplit = re.split('T', str(trimStart))
 		s = timesplit[0]
-		dt = datetime.datetime.strptime(s,fmt)
-		tt = dt.timetuple()
-		daytraces.append(dt)
-		print tt.tm_yday
-		print daytraces
-		tend = tend + 1'''
-# idea behind this is to separate the traces into complete days, trying to attach the days
-# in a stream and pull each one out separately into its own directory.
-#except:
-#	print 'Problem writing data'
-#	sys.exit(0)
+		timesplit1 = re.split('-', s)
+		NewStartDay = '0' + timesplit1[2]
+		if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/' \
+			+ year + '_' + NewStartDay+ '/'):
+			os.mkdir(codepath + net + '_' + sta  + '/' + year + '/' \
+			+ year + '_' + NewStartDay + '/')
+		stFinal = st.copy()
+		stFinal.trim(starttime = trimStart, endtime = trimEnd)	
 
-'''#Just me fooling around with array shit
-t1 = st[0 + 1]
-print t1
-t2 = st[1]
-print t2
-print ' '
-print st'''
+		# Here we write the data using STEIM 2 and 512 record lengths
+		#stFinal.write(stFinal[0].stats.location + '_' + stFinal[0].stats.channel + 				'.512.seed', format='MSEED', reclen = 512, encoding='STEIM2')	
+		
+#This is the error code I get when the above statement is uncommented.
+'''Traceback (most recent call last):
+  File "./getIIdata.py", line 177, in <module>
+    stFinal.write(stFinal[0].stats.location + '_' + stFinal[0].stats.channel + 			'.512.seed', format='MSEED', reclen = 512, encoding='STEIM2')	
+  File "/home/aringler/obspy-0.9.2/obspy/core/stream.py", line 1331, in write
+    raise NotImplementedError(msg)
+NotImplementedError: Masked array writing is not supported. You can use np.array.filled() to convert the masked array to a normal array.'''
+
+	print stFinal
+	#stFinal.write(loc + '_' + chan + '.512.seed', format='MSEED', 
+		#reclen = 512,encoding='STEIM2')	
+
+
+
 
