@@ -34,7 +34,6 @@ from obspy.core.utcdatetime import UTCDateTime
 from obspy.fdsn import Client
 
 #Need to specify which station and day we want to get data for
-#Need to add an alternate to -j which would be a start and end day
 parser = argparse.ArgumentParser(description='Code to get dataless from getIIdata.py')
 
 parser.add_argument('-y', action = "store",dest="year", \
@@ -85,17 +84,16 @@ except:
 	sys.exit(0)
 
 #Here we reparse the wildcards
+
 if loc == "?":
 	loc = "*"
 if sta == "?":
 	sta = "*"
 if chan == "?":
 	chan = "*"
-
 if net == "?":
 	print "Wildcarding a network is not allowed"
 	sys.exit(0)
-
 
 #Here we set the day and year to a UTCDateTime object
 startTime = UTCDateTime(year + startday +"T00:00:00.000")
@@ -112,26 +110,55 @@ if debug:
 
 #Here we pull the data
 client = Client("IRIS")
+DupStations = []
+DupLocations = []
+DupChannels = []
+STAWILD = False
+LOCWILD = False
+CHANWILD = False
 try:
 	requestArray = [(net,sta,loc,chan,startTime,endTime)]
 	if debug:
 		print(requestArray)
 		print 
 	st = client.get_waveforms_bulk(requestArray)
+#	print st
+#	sys.exit(0)
 	for tr in st:
-#Here we remove the M data quality and go with D
+		#Here we remove the M data quality and go with D
 		tr.stats.mseed['dataquality'] = 'D'
 		if debug:
-			print "Here is a trace we have"
-			print(tr.stats)
-			print 
+			#print "Here is a trace we have"
+			#print(tr.stats)
+			if sta == '*':
+				STAWILD = True
+				DupStations.append(tr.stats.station)				
+		    	elif sta != '*':
+                		STAWILD = False
+
+            		if loc == '*':
+				LOCWILD = True	
+                		DupLocations.append(tr.stats.location)
+		    	elif loc != '*':
+				LOCWILD = False 
+			
+			if chan == '*':
+				CHANWILD = True	
+                		DupChannels.append(tr.stats.channel)
+		    	elif chan != '*':
+				CHANWILD = False 
 except:
 	print 'Trouble getting data'
 	sys.exit(0)
-
+#takes duplicate stations out of list
+stations = list(set(DupStations))
+locations = list(set(DupLocations))
+channels = list(set(DupChannels))
+print stations
+print locations
+print channels
 #One parser flag could be to the local directory the other could go to 
 #/TEST_ARCHIVE
-
 if archive:
 	if debug:
 		print "We are archiving the data to /TEST_ARCHIVE"
@@ -139,50 +166,115 @@ if archive:
 if True:
 	if debug:
 		print "We are writing the data" 
-#Need to check if the directories exist and if not make them
-	filename = loc + '_' + chan + '.512.seed'
-	codepath = '/home/aringler/getIIdata/getIIdata/'
-	st.merge()
-	st.sort()
-	st.count()
-	days = int(round((st[0].stats.endtime - st[0].stats.starttime)/(24*60*60)))
+
+	#Need to check if the directories exist and if not make them
+	#Main program
+	codepath = '/home/mkline/dev/getIIdata/TEST_ARCHIVE/'
+	days = int(round((st[-1].stats.endtime - st[0].stats.starttime)/(24*60*60)))
 	stFinal = Stream()
-	
-	for dayIndex in range(0,days):
-	#You will want to put the directory structures in here since you won't want to
-	#add directory structures that you don't use
-		if not os.path.exists(codepath + net + '_' + sta  + '/'):
-			os.mkdir(codepath + net + '_' + sta  + '/')
-		if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/'):
-			os.mkdir(codepath + net + '_' + sta  + '/' + year + '/')
-		print "Day properties: "
-		print(dayIndex)
-		trimStart = st[0].stats.starttime + (dayIndex)*24*60*60
-		trimEnd = st[0].stats.starttime + (dayIndex+1)*24*60*60
-		print(trimStart)
-		print(trimEnd)
-		print
-		timesplit = re.split('T', str(trimStart))
-		s = timesplit[0]
-		timesplit1 = re.split('-', s)
-		NewStartDay = '0' + timesplit1[2]
-		if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/' \
-			+ year + '_' + NewStartDay+ '/'):
-			os.mkdir(codepath + net + '_' + sta  + '/' + year + '/' \
-			+ year + '_' + NewStartDay + '/')
-		print(st)
-		stFinal = st.copy()
-		print(stFinal)
-		stFinal.trim(starttime = trimStart, endtime = trimEnd)	
-		stFinal = stFinal.split()
-		# Here we write the data using STEIM 2 and 512 record lengths
-		stFinal.write(stFinal[0].stats.location + '_' + stFinal[0].stats.channel + '.seed', format='MSEED',reclen = 512, encoding='STEIM2')
-		
 
-		print stFinal
-	#stFinal.write(loc + '_' + chan + '.512.seed', format='MSEED', 
-		#reclen = 512,encoding='STEIM2')	
-
-
-
-
+	if STAWILD:
+		for sta in stations:
+			trace = st.select(station = sta)
+			trace.merge()
+			trace.sort()
+			trace.count()
+			#Converting date into julian day
+			#this is here to make sure that all the traces start on the same day
+			timesplit = re.split('T', str(trace[0].stats.starttime))
+			s = timesplit[0]
+			fmt = '%Y-%m-%d'
+			dt = datetime.datetime.strptime(s, fmt)
+			tt = dt.timetuple()
+			if tt.tm_yday < 10:
+				NewStartDay = '00' + str(tt.tm_yday)
+			elif tt.tm_yday < 100:
+				NewStartDay = '0' + str(tt.tm_yday)
+			else:
+				NewStartDay = str(tt.tm_yday)
+			#index error if these dont match for the given station
+			if startday != NewStartDay :
+				stations.remove(sta)
+				print "This station doesnt have seed data for this day"
+			else:
+				for dayIndex in range(0,days):
+					print "Day properties: "
+					trimStart = trace[0].stats.starttime + (dayIndex)*24*60*60
+					trimEnd = trace[0].stats.starttime + (dayIndex+1)*24*60*60
+					print "Start of day: " + str(trimStart)
+					print "End of day:   " + str(trimEnd)
+					#Converting date into julian day
+					timesplit = re.split('T', str(trimStart))
+					s = timesplit[0]
+					fmt = '%Y-%m-%d'
+					dt = datetime.datetime.strptime(s, fmt)
+					tt = dt.timetuple()
+					if tt.tm_yday < 10:
+						NewStartDay = '00' + str(tt.tm_yday)
+					elif tt.tm_yday < 100:
+						NewStartDay = '0' + str(tt.tm_yday)
+					else:
+						NewStartDay = str(tt.tm_yday)
+					stFinal = trace.copy()
+					stFinal.trim(starttime = trimStart, endtime = trimEnd)	
+					stFinal = stFinal.split()
+					#Added the directory structures in here since you won't want to
+					#add directory structures that you don't use
+					if not os.path.exists(codepath + net + '_' + sta  + '/'):
+						os.mkdir(codepath + net + '_' + sta  + '/')
+					if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/'):
+						os.mkdir(codepath + net + '_' + sta  + '/' + year + '/')
+					stpath = codepath + net + '_' + sta  + '/' + year + '/' \
+						+ year + '_' + NewStartDay + '/'
+					if not os.path.exists(stpath):
+						os.mkdir(stpath)
+					# Here we write the data using STEIM 2 and 512 record lengths
+					stFinal.write(stpath + stFinal[0].stats.location + '_' + stFinal[0].stats.channel \
+						+ '.512.seed', format='MSEED',reclen = 512, encoding='STEIM2')
+					print stFinal
+					print
+    	elif LOCWILD: 
+		for loc in locations:
+			trace = st.select(location = loc)
+			trace.merge()
+			trace.sort()
+			trace.count()
+			print "For station: " + sta
+			for dayIndex in range(0,days):
+				print "Day properties: "
+				trimStart = trace[0].stats.starttime + (dayIndex)*24*60*60
+				trimEnd = trace[0].stats.starttime + (dayIndex+1)*24*60*60
+				print "Start of day: " + str(trimStart)
+				print "End of day:   " + str(trimEnd)
+				#Converting date into julian day
+				timesplit = re.split('T', str(trimStart))
+				s = timesplit[0]
+				fmt = '%Y-%m-%d'
+				dt = datetime.datetime.strptime(s, fmt)
+				tt = dt.timetuple()
+				if tt.tm_yday < 10:
+					NewStartDay = '00' + str(tt.tm_yday)
+				elif tt.tm_yday < 100:
+					NewStartDay = '0' + str(tt.tm_yday)
+				else:
+					NewStartDay = str(tt.tm_yday)
+				stFinal = trace.copy()
+				stFinal.trim(starttime = trimStart, endtime = trimEnd)	
+				stFinal = stFinal.split()
+				#Added the directory structures in here since you won't want to
+				#add directory structures that you don't use
+				#problem with this is the current loop does not run through all of the stations!
+				print
+				if not os.path.exists(codepath + net + '_' + sta  + '/'):
+					os.mkdir(codepath + net + '_' + sta  + '/')
+				if not os.path.exists(codepath + net + '_' + sta  + '/' + year + '/'):
+					os.mkdir(codepath + net + '_' + sta  + '/' + year + '/')
+				stpath = codepath + net + '_' + sta  + '/' + year + '/' \
+					+ year + '_' + NewStartDay + '/'
+				if not os.path.exists(stpath):
+					os.mkdir(stpath)
+				print
+				# Here we write the data using STEIM 2 and 512 record lengths
+				stFinal.write(stpath + stFinal[0].stats.location + '_' + stFinal[0].stats.channel \
+					+ '.512.seed', format='MSEED',reclen = 512, encoding='STEIM2')
+				print stFinal
