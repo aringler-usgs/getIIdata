@@ -84,7 +84,7 @@ class GetIIData(object):
 			print '\nNo main args given.'
 			print 'Exiting\n'
 			sys.exit(1)
-	
+
 	def queryData(self):
 		# code from IRIS client 
 		#Here we pull the data
@@ -120,7 +120,7 @@ class GetIIData(object):
                 				DupLocations.append(self.tr.stats.location)
 		    			elif self.location != '*':
 						self.LOCWILD = False 
-			
+
 					if self.channel == '*':
 						self.CHANWILD = True	
                 				DupChannels.append(self.tr.stats.channel)
@@ -129,88 +129,128 @@ class GetIIData(object):
 		except:
 			print 'Trouble getting data'
 			sys.exit(0)
-		# Takes duplicate stations out of list and 
-		# makes station, location, and channel into an array 
-		# for looping( probably easier way but it works)
+		#takes duplicate stations out of list
 		self.stations = list(set(DupStations))
-		self.stations.append(self.station)
 		self.locations = list(set(DupLocations))
-		self.locations.append(self.location)
 		self.channels = list(set(DupChannels))
-		self.channels.append(self.channel)
-			
+		print self.stations
+		print self.locations
+		print self.channels
 		# Now call code to store streams in mseed files
 		self.storeMSEED()
-	
+
+	#LAST THING TO DO!!!!
 	def storeMSEED(self):
 		#code for storing MSEED files
 		#Need to check if the directories exist and if not make them
 		#Main program
-		codepath = '/home/mkline/dev/getIIdataBackup/TEST_ARCHIVE/'
+		codepath = '/home/mkline/dev/getIIdata/TEST_ARCHIVE/'
 		self.days = int(round((self.st[-1].stats.endtime \
 			- self.st[0].stats.starttime)/(24*60*60)))
 		self.stFinal = Stream()
 
-		for self.station in self.stations:
-			print
-			print "For station: " + self.station
-			trace = self.st.select(station = self.station)
-			trace.merge()
-			trace.sort()
-			trace.count()
+		if self.STAWILD:
+			for self.station in self.stations:
+				print
+				print "For station: " + self.station
+				trace = self.st.select(station = self.station)
+				trace.merge()
+				trace.sort()
+				trace.count()
+				for dayIndex in range(0,self.days):
+					print "Day properties: "
+					#startTime works better than trace[0].stats.starttime
+					trimStart = self.startTime + (dayIndex)*24*60*60
+					trimEnd = self.startTime + (dayIndex+1)*24*60*60
+					print "Start of day: " + str(trimStart)
+					print "End of day:   " + str(trimEnd)
+					#Converting date into julian day
+					timesplit = re.split('T', str(trimStart))
+					s = timesplit[0]
+					fmt = '%Y-%m-%d'
+					dt = datetime.datetime.strptime(s, fmt)
+					tt = dt.timetuple()
+					if tt.tm_yday < 10:
+						NewStartDay = '00' + str(tt.tm_yday)
+					elif tt.tm_yday < 100:
+						NewStartDay = '0' + str(tt.tm_yday)
+					else:
+						NewStartDay = str(tt.tm_yday)
+					self.stFinal = trace.copy()
+					self.stFinal.trim(starttime = trimStart, endtime = trimEnd)	
+					self.stFinal = self.stFinal.split()
+					if not self.stFinal:
+						print "No trace for given day"
+					else:
+						#Added the directory structures in here since you won't want to
+						#add directory structures that you don't use
+						if not os.path.exists(codepath + self.network + '_' + self.station  + '/'):
+							os.mkdir(codepath + self.network + '_' + self.station  + '/')
+						if not os.path.exists(codepath + self.network + '_' + self.station  + '/' \
+							+ self.year + '/'):
+							os.mkdir(codepath + self.network + '_' + self.station  + '/' \
+							+ self.year + '/')
+						stpath = codepath + self.network + '_' + self.station  + '/' + self.year + \
+							'/' + self.year + '_' + NewStartDay + '/'
+						if not os.path.exists(stpath):
+							os.mkdir(stpath)
+						# Here we write the data using STEIM 2 and 512 record lengths
+						self.stFinal.write(stpath + self.stFinal[0].stats.location + '_' + \
+							self.stFinal[0].stats.channel + '.512.seed', format='MSEED', \
+							reclen = 512, encoding='STEIM2')
+						print self.stFinal
+
+		elif self.LOCWILD:
 			for self.location in self.locations:
+				print
+				print "For station: " + self.station
 				trace = self.st.select(location = self.location)
 				trace.merge()
 				trace.sort()
 				trace.count()
-				for self.channel in self.channels:
-					trace = self.st.select(channel = self.channel)
-					trace.merge()
-					trace.sort()
-					trace.count()
-					for dayIndex in range(0,self.days):
-						print "Day properties: "
-						#startTime works better than trace[0].stats.starttime
-						trimStart = self.startTime + (dayIndex)*24*60*60
-						trimEnd = self.startTime + (dayIndex+1)*24*60*60
-						print "Start of day: " + str(trimStart)
-						print "End of day:   " + str(trimEnd)
-						#Converting date into julian day
-						timesplit = re.split('T', str(trimStart))
-						s = timesplit[0]
-						fmt = '%Y-%m-%d'
-						dt = datetime.datetime.strptime(s, fmt)
-						tt = dt.timetuple()
-						if tt.tm_yday < 10:
-							NewStartDay = '00' + str(tt.tm_yday)
-						elif tt.tm_yday < 100:
-							NewStartDay = '0' + str(tt.tm_yday)
-						else:
-							NewStartDay = str(tt.tm_yday)
-						self.stFinal = trace.copy()
-						self.stFinal.trim(starttime = trimStart, endtime = trimEnd)	
-						self.stFinal = self.stFinal.split()
-						if not self.stFinal:
-							print "No trace for given day"
-						else:
-							#Added the directory structures in here since you won't want to
-							#add directory structures that you don't use
-							if not os.path.exists(codepath + self.network + '_' + self.station  + '/'):
-								os.mkdir(codepath + self.network + '_' + self.station  + '/')
-							if not os.path.exists(codepath + self.network + '_' + self.station  + '/' \
-								+ self.year + '/'):
-								os.mkdir(codepath + self.network + '_' + self.station  + '/' \
-								+ self.year + '/')
-							stpath = codepath + self.network + '_' + self.station  + '/' + self.year + \
-								'/' + self.year + '_' + NewStartDay + '/'
-							if not os.path.exists(stpath):
-								os.mkdir(stpath)
-							# Here we write the data using STEIM 2 and 512 record lengths
-							self.stFinal.write(stpath + self.stFinal[0].stats.location + '_' + \
-								self.stFinal[0].stats.channel + '.512.seed', format='MSEED', \
-								reclen = 512, encoding='STEIM2')
-							print self.stFinal
-							
+				for dayIndex in range(0,self.days):
+					print "Day properties: "
+					#startTime works better than trace[0].stats.starttime
+					trimStart = self.startTime + (dayIndex)*24*60*60
+					trimEnd = self.startTime + (dayIndex+1)*24*60*60
+					print "Start of day: " + str(trimStart)
+					print "End of day:   " + str(trimEnd)
+					#Converting date into julian day
+					timesplit = re.split('T', str(trimStart))
+					s = timesplit[0]
+					fmt = '%Y-%m-%d'
+					dt = datetime.datetime.strptime(s, fmt)
+					tt = dt.timetuple()
+					if tt.tm_yday < 10:
+						NewStartDay = '00' + str(tt.tm_yday)
+					elif tt.tm_yday < 100:
+						NewStartDay = '0' + str(tt.tm_yday)
+					else:
+						NewStartDay = str(tt.tm_yday)
+					self.stFinal = trace.copy()
+					self.stFinal.trim(starttime = trimStart, endtime = trimEnd)	
+					self.stFinal = self.stFinal.split()
+					if not self.stFinal:
+						print "No trace for given day"
+					else:
+						#Added the directory structures in here since you won't want to
+						#add directory structures that you don't use
+						if not os.path.exists(codepath + self.network + '_' + self.station  + '/'):
+							os.mkdir(codepath + self.network + '_' + self.station  + '/')
+						if not os.path.exists(codepath + self.network + '_' + self.station  + '/' \
+							+ self.year + '/'):
+							os.mkdir(codepath + self.network + '_' + self.station  + '/' \
+							+ self.year + '/')
+						stpath = codepath + self.network + '_' + self.station  + '/' + self.year + \
+							'/' + self.year + '_' + NewStartDay + '/'
+						if not os.path.exists(stpath):
+							os.mkdir(stpath)
+						# Here we write the data using STEIM 2 and 512 record lengths
+						self.stFinal.write(stpath + self.stFinal[0].stats.location + '_' + \
+							self.stFinal[0].stats.channel + '.512.seed', format='MSEED', \
+							reclen = 512, encoding='STEIM2')
+						print self.stFinal
+
 
 	# convert optional boolean strings to boolean vars
 	def toBool(self, value):
@@ -265,7 +305,7 @@ def Help():
 	(year = 'YYYY')				\tyear of collected data
 	(startday = 'DDD')			\tthe left edge of time series (Julian Day)
 	"""
-	
+
 	optargs = """optional arguments:
 	(endday = 'DDD')			\tthe right edge of time series (Julian Day)
 	(station = 'SSSSS')			\tspecific station to where to pull data from
