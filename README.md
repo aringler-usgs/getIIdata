@@ -6,29 +6,42 @@ Repository to get different network data from IRIS
 Usage
 =========
 
-usage: getIIdata.py [-h] -y YEAR -j DAY -nslc NSLC [NSLC ...] [-d] [-a]
-
-Code to get dataless from getIIdata.py
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -y YEAR               Year of collected data: YYYY
-  -j DAY, --day         DAY
-                        Day of collected data: DDD
-  -nslc NSLC [NSLC ...]
-                        Enter NN SSSSS LL CCC
-  -d, --debug           Run in debug mode
-  -a, --archive         Archive the data in /TEST_ARCHIVE
+Usage:  This code pulls network data from IRIS and sets 
+	it up to be put in a directory structure. The data that is pulled is 
+	from the II network given the year and start day that the data is from.
+	The end day is an optional arguement; if no end day specified, it will 
+	be one day after start day given. Station, location, and channel can be
+	wildcards or given a specific value. If the station, location, and channel 
+	given do not return any data(trace(s)), IRIS did not collect data for 
+	that specific start day given.
+	Optionally the user can:
+		- specify an end day to collect data for multiple days
+		- choose a specific station, location, and/or channel 
+		- archive the data if it has yet to be stored in the directory structure
+	Arguments will be passed to:
+		- GetIIData.GetArgs(posargs,optargs)
+		- posargs - positional arguments (network, year, startday)
+		- optargs - optional arguments (endday, station, location, channel, debug, archive)
 
 Example
 =========
 
-./getIIdata.py -y 2014 -j 001 -nslc IU ANMO ? LHZ -d
+./runII.py 
 
-TO DO
-=========
+		#Runs GetIIData.py script
 
-Add start and end day to parser
-Create directory structure to add to /TEST_ARCHIVE
-Finish adding wildcards
-If not adding the data to /TEST_ARCHIVE we should include the station
+import getIIdata
+import os
+
+		#For {net, stat, loc} wildcards use '?'
+
+homedir = os.getcwd()
+year = '2014'
+startday = '001'
+network = 'II'
+getIIdata.Help()
+obj = getIIdata.GetArgs(year, startday, network,\
+			endday='002', station='?',\
+			location='00', channel='LHZ',\
+			debug="true", archive="true")
+
