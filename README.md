@@ -6,14 +6,14 @@ Repository to get different network data from IRIS
 Usage
 =========
 
-Usage:  This code pulls network data from IRIS and sets 
-	it up to be put in a directory structure. The data that is pulled is 
-	from the II network given the year and start day that the data is from.
-	The end day is an optional arguement; if no end day specified, it will 
-	be one day after start day given. Station, location, and channel can be
-	wildcards or given a specific value. If the station, location, and channel 
-	given do not return any data(trace(s)), IRIS did not collect data for 
-	that specific start day given.
+Usage:  This code pulls network data from IRIS and sets    
+	it up to be put in a directory structure. The data that is pulled is     
+	from the II network given the year and start day that the data is from.     
+	The end day is an optional arguement; if no end day specified, it will      
+	be one day after start day given. Station, location, and channel can be      
+	wildcards or given a specific value. If the station, location, and channel       
+	given do not return any data(trace(s)), IRIS did not collect data for       
+	that specific start day given.      
 	Optionally the user can:
 		- specify an end day to collect data for multiple days
 		- choose a specific station, location, and/or channel 
