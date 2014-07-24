@@ -19,8 +19,9 @@ Usage:  This code pulls network data from IRIS and sets
 		- specify an end day to collect data for multiple days    
 		- choose a specific station, location, and/or channel    
 		- archive the data if it has yet to be stored in the directory structure   
-	Arguments will be passed to:   
-		- GetIIData.GetArgs(posargs,optargs)    
+	Arguments will be passed to:  
+		- getIIdata.Help() 
+		- getIIdata.GetArgs(posargs,optargs)    
 		- posargs - positional arguments (network, year, startday)     
 		- optargs - optional arguments (endday, station, location, channel, debug, archive)    
 
