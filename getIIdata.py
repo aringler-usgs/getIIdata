@@ -154,8 +154,10 @@ class GetIIData(object):
 		#Need to check if the directories exist and if not make them
 		#Main program
 		codepath = '/home/mkline/dev/getIIdataBackup/TEST_ARCHIVE/'
-		self.days = int(round((self.st[-1].stats.endtime \
-			- self.st[0].stats.starttime)/(24*60*60)))
+		#self.days1 doesnt work because st may end 
+		#self.days1 = int(round((self.st[-1].stats.endtime \
+			#- self.st[0].stats.starttime)/(24*60*60)))
+		self.days = int(self.endday)- int(self.startday)
 		self.stFinal = Stream()
 		for self.channel in self.channels:
 			self.trace2 = self.st.select(channel = self.channel)
@@ -187,6 +189,7 @@ class GetIIData(object):
 							NewStartDay = '0' + str(tt.tm_yday)
 						else:
 							NewStartDay = str(tt.tm_yday)
+
 						self.stFinal = trace.copy()
 						self.stFinal.trim(starttime = trimStart, endtime = trimEnd)	
 						self.stFinal = self.stFinal.split()
