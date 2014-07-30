@@ -8,6 +8,7 @@ import sys
 import datetime
 import re, string, time
 import numpy.ma as ma
+import numpy as np
 
 #Here is where we will import our modules
 
@@ -69,13 +70,14 @@ class GetIIData(object):
 		# set start/end to UTCDateTime object
 		#--------------------------------------------------------------------
 		self.startTime = UTCDateTime(year + startday +"T00:00:00.000")
-		#If no end day in parser default to 1 day
+		# If no end day in parser default to 1 day
 		if self.endday == "?":
+			self.endday = str(int(self.startday) + 1).zfill(3)
 			self.endTime = self.startTime + 24*60*60
 		else:
 			self.endTime = UTCDateTime(year + self.endday +"T00:00:00.000")
-		print "Here is our start time " + self.startTime.formatIRISWebService()
-		print "Here is our end time   " + self.endTime.formatIRISWebService()
+		print "Here is our start time: " + self.startTime.formatIRISWebService()
+		print "Here is our end time:   " + self.endTime.formatIRISWebService()
 		# Will only run if main args are given
 		# check QUERY flag if True continue
 		if QUERY:
@@ -87,29 +89,24 @@ class GetIIData(object):
 	
 	def queryData(self):
 		# code from IRIS client 
-		#Here we pull the data
+		# Here we pull the data
 		client = Client("IRIS")
 		DupStations = []
 		DupLocations = []
 		DupChannels = []
+		self.st = []
 		self.STAWILD = False
 		self.LOCWILD = False
 		self.CHANWILD = False
 		try:
 			requestArray = [(self.network,self.station,self.location, \
 				self.channel,self.startTime,self.endTime)]
-			print
-			if self.debug:
-				print(requestArray)
-				print 
 			self.st = client.get_waveforms_bulk(requestArray)
-			print self.st
+			#self.st = client.get_waveforms_bulk(timeout=10,requestArray)
 			for self.tr in self.st:
 				#Here we remove the M data quality and go with D
 				self.tr.stats.mseed['dataquality'] = 'D'
 				if self.debug:
-					#print "Here is a trace we have"
-					#print(tr.stats)
 					if self.station == '*':
 						self.STAWILD = True
 						DupStations.append(self.tr.stats.station)				
@@ -127,6 +124,10 @@ class GetIIData(object):
                 				DupChannels.append(self.tr.stats.channel)
 		    			elif self.channel != '*':
 						self.CHANWILD = False 
+		#except TimeoutError:
+			#print 'Get waveform timeout, exiting...'
+			#sys.exit(0)
+			
 		except:
 			print 'Trouble getting data'
 			sys.exit(0)
@@ -142,21 +143,18 @@ class GetIIData(object):
 		self.channels = list(set(DupChannels))
 		if self.channel != '*':	
 			self.channels.append(self.channel)
-		print self.stations
-		print self.locations
-		print self.channels
+		print
+		print "Station(s) being pulled: " + str(self.stations)
+		print "Location(s) being pulled: " + str(self.locations)
+		print "Channel(s) being pulled: " + str(self.channels)
 			
 		# Now call code to store streams in mseed files
 		self.storeMSEED()
 	
 	def storeMSEED(self):
-		#code for storing MSEED files
-		#Need to check if the directories exist and if not make them
 		#Main program
+		#code for storing MSEED files
 		codepath = '/home/mkline/dev/getIIdataBackup/TEST_ARCHIVE/'
-		#self.days1 doesnt work because st may end 
-		#self.days1 = int(round((self.st[-1].stats.endtime \
-			#- self.st[0].stats.starttime)/(24*60*60)))
 		self.days = int(self.endday)- int(self.startday)
 		self.stFinal = Stream()
 		for self.channel in self.channels:
@@ -165,7 +163,8 @@ class GetIIData(object):
 				self.trace1 = self.trace2.select(location = self.location)
 				for self.station in self.stations:
 					print
-					print "For station, location, and channel: " + self.station +" "+ self.location +" "+ self.channel
+					print "For station, location, and channel: " \
+						+ self.station +" "+ self.location +" "+ self.channel
 					trace = self.trace1.select(station = self.station)
 					trace.merge()
 					trace.sort()
@@ -177,27 +176,23 @@ class GetIIData(object):
 						trimEnd = self.startTime + (dayIndex+1)*24*60*60
 						print "Start of day: " + str(trimStart)
 						print "End of day:   " + str(trimEnd)
-						#Converting date into julian day
+						#Converting date into julian day to store in directory
 						timesplit = re.split('T', str(trimStart))
 						s = timesplit[0]
 						fmt = '%Y-%m-%d'
 						dt = datetime.datetime.strptime(s, fmt)
 						tt = dt.timetuple()
-						if tt.tm_yday < 10:
-							NewStartDay = '00' + str(tt.tm_yday)
-						elif tt.tm_yday < 100:
-							NewStartDay = '0' + str(tt.tm_yday)
-						else:
-							NewStartDay = str(tt.tm_yday)
-
+						NewStartDay = str(tt.tm_yday).zfill(3)
 						self.stFinal = trace.copy()
-						self.stFinal.trim(starttime = trimStart, endtime = trimEnd)	
-						self.stFinal = self.stFinal.split()
-						if not self.stFinal:
+						self.stFinal.trim(starttime = trimStart, endtime = trimEnd)
+						# This if statement is used to make sure traces with no 
+						# data dont get added to the directory structure
+						if not self.stFinal or str(self.stFinal[0].max()) == '--':
 							print "No trace for given day"
 						else:
 							#Added the directory structures in here since you won't want to
 							#add directory structures that you don't use
+							self.stFinal = self.stFinal.split()
 							if not os.path.exists(codepath + self.network + '_' + self.station  + '/'):
 								os.mkdir(codepath + self.network + '_' + self.station  + '/')
 							if not os.path.exists(codepath + self.network + '_' + self.station  + '/' \
@@ -213,6 +208,7 @@ class GetIIData(object):
 								self.stFinal[0].stats.channel + '.512.seed', format='MSEED', \
 								reclen = 512, encoding='STEIM2')
 							print self.stFinal
+						
 							
 
 	# convert optional boolean strings to boolean vars
@@ -253,6 +249,7 @@ def Help():
 	wildcards or given a specific value. Only one of these can be wildcarded
 	at a time. If the station, location, and channel given do not return any 
 	data(trace(s)), IRIS did not collect data for that specific start day given.
+
 	Optionally the user can:
 		- specify an end day to collect data for multiple days
 		- choose a specific station, location, and/or channel 
@@ -279,6 +276,7 @@ def Help():
 						  (if all channels wanted, enter '?')
 	(debug = 'True/False')			\trun in debug mode
 	(archive = 'True/False')		\tarchive the data in /TEST_ARCHIVE
+------------------------------------------------------------------------------------------------
 	"""
 
 	print usage
