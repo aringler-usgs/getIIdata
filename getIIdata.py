@@ -8,7 +8,8 @@ import sys
 import datetime
 import re, string, time
 import numpy.ma as ma
-import numpy as np
+import socket
+
 
 #Here is where we will import our modules
 
@@ -78,6 +79,9 @@ class GetIIData(object):
 			self.endTime = UTCDateTime(year + self.endday +"T00:00:00.000")
 		print "Here is our start time: " + self.startTime.formatIRISWebService()
 		print "Here is our end time:   " + self.endTime.formatIRISWebService()
+		self.days = int(self.endday)- int(self.startday)
+		# there are 24, 1 hour increments in a day
+		self.hours = (int(self.endday)- int(self.startday)) * 24 
 		# Will only run if main args are given
 		# check QUERY flag if True continue
 		if QUERY:
@@ -94,15 +98,28 @@ class GetIIData(object):
 		DupStations = []
 		DupLocations = []
 		DupChannels = []
-		self.st = []
+		self.st = Stream()
 		self.STAWILD = False
 		self.LOCWILD = False
 		self.CHANWILD = False
+		
 		try:
-			requestArray = [(self.network,self.station,self.location, \
-				self.channel,self.startTime,self.endTime)]
-			self.st = client.get_waveforms_bulk(requestArray)
-			#self.st = client.get_waveforms_bulk(timeout=10,requestArray)
+			timeout = 300
+			socket.setdefaulttimeout(timeout)
+			# this needs to have a get_waveform that queries data 1 hour at a time
+			# data cant query right now if the data is too bulky
+			# also needs to include a timeout exception
+			for hourIndex in range(0,self.hours): #this cant be days... has to be hours
+				self.startTime1 = self.startTime + (hourIndex)*1*60*60
+				self.endTime1 = self.startTime + (hourIndex+1)*1*60*60
+				requestArray = [(self.network,self.station,self.location, \
+					self.channel,self.startTime1,self.endTime1)]
+				self.st1 = client.get_waveforms_bulk(requestArray)
+				self.st += self.st1
+				print self.st	
+				print
+				#self.st = client.get_waveforms_bulk(timeout=10,requestArray)
+				
 			for self.tr in self.st:
 				#Here we remove the M data quality and go with D
 				self.tr.stats.mseed['dataquality'] = 'D'
@@ -112,13 +129,13 @@ class GetIIData(object):
 						DupStations.append(self.tr.stats.station)				
 		    			elif self.station != '*':
                 				self.STAWILD = False
-
+	
             				if self.location == '*':
 						self.LOCWILD = True	
                 				DupLocations.append(self.tr.stats.location)
 		    			elif self.location != '*':
 						self.LOCWILD = False 
-			
+				
 					if self.channel == '*':
 						self.CHANWILD = True	
                 				DupChannels.append(self.tr.stats.channel)
@@ -126,11 +143,11 @@ class GetIIData(object):
 						self.CHANWILD = False 
 		#except TimeoutError:
 			#print 'Get waveform timeout, exiting...'
-			#sys.exit(0)
-			
+			#sys.exit(0)	
 		except:
 			print 'Trouble getting data'
 			sys.exit(0)
+		
 		# Takes duplicate stations out of list and 
 		# makes station, location, and channel into an array 
 		# for looping( probably easier way but it works)
@@ -155,7 +172,6 @@ class GetIIData(object):
 		#Main program
 		#code for storing MSEED files
 		codepath = '/home/mkline/dev/getIIdataBackup/TEST_ARCHIVE/'
-		self.days = int(self.endday)- int(self.startday)
 		self.stFinal = Stream()
 		for self.channel in self.channels:
 			self.trace2 = self.st.select(channel = self.channel)
@@ -241,46 +257,46 @@ class GetArgs(GetIIData):
 
 def Help():
 	# help file that takes the same format as python parser
-	usage = """Usage: This code pulls network data from IRIS and sets 
+	usage = """Usage:  This code pulls network data from IRIS and sets 
 	it up to be put in a directory structure. The data that is pulled is 
 	from the II network given the year and start day that the data is from.
 	The end day is an optional arguement; if no end day specified, it will 
 	be one day after start day given. Station, location, and channel can be
-	wildcards or given a specific value. Only one of these can be wildcarded
-	at a time. If the station, location, and channel given do not return any 
-	data(trace(s)), IRIS did not collect data for that specific start day given.
+	wildcards or given a specific value. If the station, location, and    
+	channel given do not return any data(trace(s)), IRIS did not collect    
+	data for that specific start day given.
 
-	Optionally the user can:
+	optionally the user can:
 		- specify an end day to collect data for multiple days
 		- choose a specific station, location, and/or channel 
 		- archive the data if it has yet to be stored in the directory structure
-	Arguments will be passed to:
+	arguments will be passed to:
 		- GetIIData.GetArgs(posargs,optargs)
 		- posargs - positional arguments (network, year, startday)
-		- optargs - optional arguments (endday, station, location, channel, debug, archive)
+		- optargs - optional arguments 
+			(endday, station, location, channel, debug, archive)
 	"""
 
-	posargs = """postional arguments:
-	(network = 'II')			\tnetwork in which data is pulled from
-	(year = 'YYYY')				\tyear of collected data
-	(startday = 'DDD')			\tthe left edge of time series (Julian Day)
+	posargs = """Postional arguments:
+	(network = 'II')		network in which data is pulled from
+	(year = 'YYYY')			year of collected data
+	(startday = 'DDD')		the left edge of time series (Julian Day)
 	"""
 	
-	optargs = """optional arguments:
-	(endday = 'DDD')			\tthe right edge of time series (Julian Day)
-	(station = 'SSSSS')			\tspecific station to where to pull data from
-						  (if all stations wanted, enter '?')
-	(location = 'LL')			\tspecific location to where to pull data from
-						  (if all locations wanted, enter '?')
-	(channel = 'CCC')			\tspecific channel to where to pull data from
-						  (if all channels wanted, enter '?')
-	(debug = 'True/False')			\trun in debug mode
-	(archive = 'True/False')		\tarchive the data in /TEST_ARCHIVE
+	optargs = """Optional arguments:
+	(endday = 'DDD')		the right edge of time series (Julian Day)
+	(station = 'SSSSS')		specific station to where to pull data from
+					  (if all stations wanted, enter '?')
+	(location = 'LL')		specific location to where to pull data from
+					  (if all locations wanted, enter '?')
+	(channel = 'CCC')		specific channel to where to pull data from
+					  (if all channels wanted, enter '?')
+	(debug = 'True/False')		run in debug mode
+	(archive = 'True/False')	archive the data in /TEST_ARCHIVE
 ------------------------------------------------------------------------------------------------
 	"""
 
 	print usage
 	print posargs
 	print optargs
-
 
