@@ -44,11 +44,11 @@ sday = 1
 eday = 15
 network = 'II'    
 getIIdata.Help()
-for curday in range (sday,eday): #to query data faster
-    startday = str(curday).zfill(3)
-    edday = str(curday + 1).zfill(3)
-    obj = getIIdata.GetArgs(year, startday, network, 
-			endday=edday, station='?', 
-			location='?', channel='LHZ', 
-			debug="true", archive="true")
+for curday in range (sday,eday): #to query data faster    
+    startday = str(curday).zfill(3)    
+    edday = str(curday + 1).zfill(3)    
+    obj = getIIdata.GetArgs(year, startday, network,     
+			endday=edday, station='?',     
+			location='?', channel='LHZ',     
+			debug="true", archive="true")    
 
